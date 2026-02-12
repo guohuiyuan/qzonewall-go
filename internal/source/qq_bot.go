@@ -519,7 +519,7 @@ func (b *QQBot) handleDirectPublish(ctx *zero.Ctx) {
 					continue
 				}
 				data, err := io.ReadAll(resp.Body)
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				if err != nil {
 					log.Printf("[QQBot] 图片读取失败: %v", err)
 					continue

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw" // 标准库：提供 draw.Over, draw.Src, draw.Draw
 	"image/jpeg"
 	"log"
 	"math"
@@ -18,7 +19,7 @@ import (
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
 	"github.com/guohuiyuan/qzonewall-go/internal/model"
-	"golang.org/x/image/draw"
+	xdraw "golang.org/x/image/draw" // 扩展库：起别名 xdraw，提供 CatmullRom 高质量缩放
 	"golang.org/x/image/font"
 )
 
@@ -72,7 +73,7 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 		BubblePadV  = 25.0
 		LineHeight  = 1.4
 		ImgGap      = 10.0
-		ImgSize     = 220.0
+		ImgSize     = 220.0 // 九宫格单图尺寸
 	)
 
 	// ── 2. 计算布局 ──
@@ -104,10 +105,10 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 
 	if imgCount > 0 {
 		if imgCount == 1 {
-			imgCols = 1
-			// imgRows = 1 (修复: 单图模式不需要计算行数，避免 lint 报错)
-			imgAreaH = 400.0 // 单张限高
+			// 单图模式：预留最大高度，实际绘制时按比例调整
+			imgAreaH = 500.0
 		} else {
+			// 九宫格模式
 			imgCols = 3
 			if imgCount == 2 || imgCount == 4 {
 				imgCols = 2
@@ -149,10 +150,10 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	startX := Padding
 	startY := Padding
 
-	// 3.1 绘制头像（匿名投稿不渲染）
+	// 3.1 绘制头像
 	contentX := startX
 	if hasAvatar {
-		avatarImg := downloadAndResize(post.QQAvatarURL(), int(AvatarSize), int(AvatarSize))
+		avatarImg := downloadAndCrop(post.QQAvatarURL(), int(AvatarSize))
 		dc.Push()
 		dc.DrawCircle(startX+AvatarSize/2, startY+AvatarSize/2, AvatarSize/2)
 		dc.Clip()
@@ -164,7 +165,6 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 			dc.Fill()
 		}
 		dc.Pop()
-		// ★★★ 核心修复：强制重置裁剪区域，否则后面画的内容都会不可见 ★★★
 		dc.ResetClip()
 		contentX = startX + AvatarSize + AvatarRight
 	}
@@ -206,33 +206,36 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	// 3.4 绘制图片
 	if imgCount > 0 {
 		if imgCount == 1 {
-			// 单图
+			// ── 单图模式 (Aspect Fit) ──
 			rawImg := downloadImage(post.Images[0])
 			if rawImg != nil {
 				b := rawImg.Bounds()
 				origW, origH := float64(b.Dx()), float64(b.Dy())
-				maxW, maxH := 400.0, 500.0
-				scale := math.Min(maxW/origW, maxH/origH)
+
+				const MaxW = 400.0
+				const MaxH = 500.0
+
+				scale := math.Min(MaxW/origW, MaxH/origH)
 				if scale > 1.0 {
 					scale = 1.0
 				}
-				tw, th := int(origW*scale), int(origH*scale)
 
-				finalImg := resizeImage(rawImg, tw, th)
+				targetW := int(origW * scale)
+				targetH := int(origH * scale)
+
+				finalImg := resizeImage(rawImg, targetW, targetH)
 
 				dc.Push()
-				dc.DrawRoundedRectangle(contentX, currContentY, float64(tw), float64(th), 12)
+				dc.DrawRoundedRectangle(contentX, currContentY, float64(targetW), float64(targetH), 12)
 				dc.Clip()
 				dc.DrawImage(finalImg, int(contentX), int(currContentY))
 				dc.Pop()
-				// 这里也要重置，防止影响后续水印
 				dc.ResetClip()
 			} else {
-				// 下载失败显示占位
 				drawErrorPlaceholder(dc, contentX, currContentY, 200, 200)
 			}
 		} else {
-			// 九宫格
+			// ── 九宫格模式 (Aspect Fill) ──
 			for i, imgUrl := range post.Images {
 				if i >= 9 {
 					break
@@ -243,7 +246,7 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 				ix := contentX + float64(col)*(ImgSize+ImgGap)
 				iy := currContentY + float64(row)*(ImgSize+ImgGap)
 
-				img := downloadAndResize(imgUrl, int(ImgSize), int(ImgSize))
+				img := downloadAndCrop(imgUrl, int(ImgSize))
 				if img != nil {
 					dc.Push()
 					dc.DrawRoundedRectangle(ix, iy, ImgSize, ImgSize, 8)
@@ -265,7 +268,7 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	wmText := fmt.Sprintf("#%d  %s", post.ID, time.Now().Format("2006-01-02 15:04"))
 	wmW, _ := dc.MeasureString(wmText)
 	descent := float64(wmFace.Metrics().Descent.Ceil())
-	// Place watermark by measured width and baseline to avoid right/bottom clipping.
+
 	wmX := CanvasWidth - Padding - wmW
 	if wmX < Padding {
 		wmX = Padding
@@ -280,7 +283,8 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// 占位符绘制
+// ─── 辅助函数 ───
+
 func drawErrorPlaceholder(dc *gg.Context, x, y, w, h float64) {
 	dc.Push()
 	dc.SetHexColor("#E0E0E0")
@@ -291,7 +295,6 @@ func drawErrorPlaceholder(dc *gg.Context, x, y, w, h float64) {
 	dc.Pop()
 }
 
-// 下载工具（带 Header）
 func downloadImage(url string) image.Image {
 	if url == "" {
 		return nil
@@ -302,36 +305,27 @@ func downloadImage(url string) image.Image {
 			log.Printf("加载本地图片失败: %v | path: %s", err, local)
 			return nil
 		}
-		defer func() {
-			if err := f.Close(); err != nil {
-				log.Printf("关闭本地图片文件失败: %v | path: %s", err, local)
-			}
-		}()
+		defer func() { _ = f.Close() }()
 		img, _, err := image.Decode(f)
 		if err != nil {
-			log.Printf("解析本地图片失败: %v | path: %s", err, local)
 			return nil
 		}
 		return img
 	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil
 	}
-	// 伪装浏览器防止 403
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0")
 
 	client := &http.Client{Timeout: 8 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("下载出错: %v | URL: %s", err, url)
 		return nil
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("关闭响应体失败: %v | URL: %s", err, url)
-		}
-	}()
+	defer func() { _ = resp.Body.Close() }()
+
 	if resp.StatusCode != 200 {
 		return nil
 	}
@@ -340,6 +334,48 @@ func downloadImage(url string) image.Image {
 		return nil
 	}
 	return img
+}
+
+func downloadAndCrop(url string, size int) image.Image {
+	src := downloadImage(url)
+	if src == nil {
+		return nil
+	}
+	return cropToSquare(src, size)
+}
+
+func resizeImage(src image.Image, w, h int) image.Image {
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	// 使用 xdraw.CatmullRom
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
+	return dst
+}
+
+func cropToSquare(src image.Image, size int) image.Image {
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+
+	var scale float64
+	if w < h {
+		scale = float64(size) / float64(w)
+	} else {
+		scale = float64(size) / float64(h)
+	}
+
+	newW := int(float64(w) * scale)
+	newH := int(float64(h) * scale)
+
+	tmp := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	// 使用 xdraw.CatmullRom
+	xdraw.CatmullRom.Scale(tmp, tmp.Bounds(), src, src.Bounds(), draw.Over, nil)
+
+	cropX := (newW - size) / 2
+	cropY := (newH - size) / 2
+
+	dst := image.NewRGBA(image.Rect(0, 0, size, size))
+	draw.Draw(dst, dst.Bounds(), tmp, image.Point{X: cropX, Y: cropY}, draw.Src)
+
+	return dst
 }
 
 func resolveLocalUploadPath(raw string) string {
@@ -355,23 +391,4 @@ func resolveLocalUploadPath(raw string) string {
 		return local
 	}
 	return ""
-}
-
-func resizeImage(src image.Image, w, h int) image.Image {
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
-	return dst
-}
-
-func downloadAndResize(url string, w, h int) image.Image {
-	src := downloadImage(url)
-	if src == nil {
-		return nil
-	}
-	if w == h {
-		dst := image.NewRGBA(image.Rect(0, 0, w, h))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
-		return dst
-	}
-	return resizeImage(src, w, h)
 }

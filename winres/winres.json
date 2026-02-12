@@ -11,7 +11,7 @@
       "0409": {
         "identity": {
           "name": "qzonewall-go",
-          "version": "1.0.0.26"
+          "version": "1.0.0.27"
         },
         "description": "QzoneWall-Go submit and publish service",
         "minimum-os": "vista",
@@ -35,16 +35,16 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "1.0.0.26",
+          "file_version": "1.0.0.27",
           "product_version": "v1.0.0",
-          "timestamp": "2026-02-12T16:25:54+08:00"
+          "timestamp": "2026-02-12T16:41:06+08:00"
         },
         "info": {
           "0409": {
             "Comments": "QzoneWall-Go service binary",
             "CompanyName": "guohuiyuan",
             "FileDescription": "https://github.com/guohuiyuan/qzonewall-go",
-            "FileVersion": "1.0.0.26",
+            "FileVersion": "1.0.0.27",
             "InternalName": "qzonewall",
             "LegalCopyright": "(C) 2026 guohuiyuan. All Rights Reserved.",
             "LegalTrademarks": "",
