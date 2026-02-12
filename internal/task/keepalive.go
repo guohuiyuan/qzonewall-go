@@ -159,19 +159,27 @@ func (k *KeepAlive) notifyAdmin(text string) {
 // 1) ZeroBot GetCookies
 // 2) QR login
 func TryGetCookie(_ config.QzoneConfig) (string, error) {
-	// Give bot connections a short warm-up window before falling back to QR.
-	const maxAttempts = 6
+	// 优化：启动后先硬等待 2 秒。
+	// 原因：Bot 连接 WS 和同步 Cookie 需要几百毫秒到 1 秒的时间。
+	// 直接循环会导致第一次必定失败，不如先等一下，通常能一次命中。
+	log.Println("[Init] 启动预热：等待 2秒 获取 Bot 状态...")
+	time.Sleep(2 * time.Second)
+
+	const maxAttempts = 5
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		log.Printf("[Init] GetCookies attempt %d/%d", attempt, maxAttempts)
-		cookie, ok := tryGetCookieFromBots("[Init]")
+		// 尝试从 Bot 获取
+		cookie, ok := tryGetCookieFromBots(fmt.Sprintf("[Init-%d]", attempt))
 		if ok {
+			log.Println("[Init] ✅ 成功从 Bot 获取到 Cookie")
 			return cookie, nil
 		}
+
 		if attempt < maxAttempts {
-			time.Sleep(time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}
-	log.Println("[Init] all bot GetCookies attempts failed, fallback to QR")
+
+	log.Println("[Init] 所有 Bot 均未返回有效 Cookie，降级使用二维码登录")
 	return tryQRLogin()
 }
 
