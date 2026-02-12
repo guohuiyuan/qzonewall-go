@@ -1,13 +1,9 @@
 package task
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"image"
-	"io"
 	"log"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -209,37 +205,6 @@ func (w *Worker) resolveImageURL(img string) string {
 		return resolved
 	}
 	return img
-}
-
-func isImageURLValid(raw string) bool {
-	if raw == "" {
-		return false
-	}
-	req, err := http.NewRequest(http.MethodGet, raw, nil)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	// Read a small chunk to verify this is an actual image body.
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil || len(b) == 0 {
-		return false
-	}
-	_, _, err = image.DecodeConfig(bytes.NewReader(b))
-	return err == nil
 }
 
 // waitRateLimit 等待频率限制窗口。
