@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io" // 新增
+	"io"
 	"log"
-	"net/http" // 新增
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -273,7 +273,9 @@ func (b *QQBot) handleViewPost(ctx *zero.Ctx) {
 	}
 
 	if b.renderer.Available() {
-		if imgData, err := b.renderer.RenderPost(post); err == nil {
+		// 解析图片地址后再渲染
+		renderPost := resolvePostImages(post)
+		if imgData, err := b.renderer.RenderPost(renderPost); err == nil {
 			b64 := base64.StdEncoding.EncodeToString(imgData)
 			ctx.Send(message.Image("base64://" + b64))
 			return
@@ -283,13 +285,12 @@ func (b *QQBot) handleViewPost(ctx *zero.Ctx) {
 	}
 
 	// 降级: 发送原文本+原图
-	// 修正：使用 message.Message 类型，而不是 []message.MessageSegment
 	var segs message.Message
 	segs = append(segs, message.Text(fmt.Sprintf("Post #%d\n%s", post.ID, post.Text)))
 	for _, img := range post.Images {
+		// NapCat 支持 file 参数传入文件ID
 		segs = append(segs, message.Image(img))
 	}
-	// 修正：ctx.Send 不使用 ... 展开
 	ctx.Send(segs)
 }
 
@@ -335,7 +336,9 @@ func (b *QQBot) handleApprove(ctx *zero.Ctx) {
 		var renderErr error
 
 		if b.renderer.Available() {
-			imgData, renderErr = b.renderer.RenderPost(post)
+			// 解析图片地址后再渲染
+			renderPost := resolvePostImages(post)
+			imgData, renderErr = b.renderer.RenderPost(renderPost)
 		}
 
 		if renderErr != nil || imgData == nil {
@@ -512,7 +515,10 @@ func (b *QQBot) handleDirectPublish(ctx *zero.Ctx) {
 		// 2. 如果有图片，需要先下载转为 []byte
 		if len(images) > 0 {
 			client := &http.Client{Timeout: 20 * time.Second}
-			for _, imgURL := range images {
+			for _, imgStr := range images {
+				// 同样需要解析可能的 file ID
+				imgURL := resolveImageURL(imgStr)
+
 				resp, err := client.Get(imgURL)
 				if err != nil {
 					log.Printf("[QQBot] 图片下载失败: %v", err)
@@ -626,9 +632,16 @@ func extractImages(ctx *zero.Ctx) []string {
 	var images []string
 	for _, seg := range ctx.Event.Message {
 		if seg.Type == "image" {
-			if u := seg.Data["url"]; u != "" {
+			u := seg.Data["url"]
+			f := seg.Data["file"]
+			// 优先处理 NTQQ 的临时链接，改为存储 file ID
+			if strings.HasPrefix(u, "https://multimedia.nt.qq.com.cn/download") && f != "" {
+				images = append(images, f)
+				continue
+			}
+			if u != "" {
 				images = append(images, u)
-			} else if f := seg.Data["file"]; f != "" {
+			} else if f != "" {
 				images = append(images, f)
 			}
 		}
@@ -677,4 +690,30 @@ func parseIDs(s string) ([]int64, error) {
 		ids = append(ids, id)
 	}
 	return ids, nil
+}
+
+// resolveImageURL 如果是 http 链接直接返回，如果是 fileID 则调用 Bot 解析
+func resolveImageURL(img string) string {
+	if strings.HasPrefix(img, "http") {
+		return img
+	}
+	var resolved string
+	zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
+		resolved = ctx.GetImage(img).Get("url").String()
+		return true
+	})
+	if resolved != "" {
+		return resolved
+	}
+	return img
+}
+
+// resolvePostImages 克隆 Post 并解析所有图片 URL (仅用于渲染，不保存回DB)
+func resolvePostImages(p *model.Post) *model.Post {
+	clone := *p
+	clone.Images = make([]string, len(p.Images))
+	for i, img := range p.Images {
+		clone.Images[i] = resolveImageURL(img)
+	}
+	return &clone
 }

@@ -19,6 +19,8 @@ import (
 	"github.com/guohuiyuan/qzonewall-go/internal/render"
 	"github.com/guohuiyuan/qzonewall-go/internal/rkey"
 	"github.com/guohuiyuan/qzonewall-go/internal/store"
+
+	zero "github.com/wdvxdr1123/ZeroBot" // 新增引入
 )
 
 // Worker 定时轮询已通过稿件并发布到 QQ 空间。
@@ -135,6 +137,7 @@ func (w *Worker) pollAndPublish(workerID int) {
 // publish 发布到 QQ 空间。
 func (w *Worker) publish(post *model.Post) error {
 	// 发布前统一校验带 rkey 的图片链接，失效则自动刷新 rkey。
+	// 注意：这里只会处理 HTTP 链接，file ID 会被跳过
 	w.refreshInvalidRKeyImages(post)
 
 	// 构建说说文本。
@@ -147,7 +150,10 @@ func (w *Worker) publish(post *model.Post) error {
 	if !w.renderer.Available() {
 		return fmt.Errorf("publish: renderer not available")
 	}
-	screenshot, err := w.renderer.RenderPost(post)
+
+	// 渲染前解析 file ID 为 URL
+	renderPost := w.resolvePostImages(post)
+	screenshot, err := w.renderer.RenderPost(renderPost)
 	if err != nil {
 		return fmt.Errorf("publish: render screenshot: %w", err)
 	}
@@ -216,6 +222,32 @@ func (w *Worker) refreshInvalidRKeyImages(post *model.Post) {
 			log.Printf("[Worker] 回写刷新后的图片链接失败: %v", err)
 		}
 	}
+}
+
+// ── Image Resolution Helpers ──
+
+func (w *Worker) resolvePostImages(p *model.Post) *model.Post {
+	clone := *p
+	clone.Images = make([]string, len(p.Images))
+	for i, img := range p.Images {
+		clone.Images[i] = w.resolveImageURL(img)
+	}
+	return &clone
+}
+
+func (w *Worker) resolveImageURL(img string) string {
+	if strings.HasPrefix(img, "http") {
+		return img
+	}
+	var resolved string
+	zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
+		resolved = ctx.GetImage(img).Get("url").String()
+		return true
+	})
+	if resolved != "" {
+		return resolved
+	}
+	return img
 }
 
 func isImageURLValid(raw string) bool {

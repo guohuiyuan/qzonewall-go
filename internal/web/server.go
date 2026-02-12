@@ -1,7 +1,7 @@
 package web
 
 import (
-	"context" // Add this
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"embed"
@@ -26,9 +26,10 @@ import (
 	qzone "github.com/guohuiyuan/qzone-go"
 	"github.com/guohuiyuan/qzonewall-go/internal/config"
 	"github.com/guohuiyuan/qzonewall-go/internal/model"
-	"github.com/guohuiyuan/qzonewall-go/internal/render" // Add this
+	"github.com/guohuiyuan/qzonewall-go/internal/render"
 	"github.com/guohuiyuan/qzonewall-go/internal/rkey"
 	"github.com/guohuiyuan/qzonewall-go/internal/store"
+	zero "github.com/wdvxdr1123/ZeroBot"
 )
 
 //go:embed templates/*.html templates/icon.png
@@ -40,7 +41,7 @@ type Server struct {
 	wallCfg   config.WallConfig
 	store     *store.Store
 	qzClient  *qzone.Client
-	renderer  *render.Renderer // [ADDED] Need renderer for generating images
+	renderer  *render.Renderer
 	tmpl      *template.Template
 	server    *http.Server
 	uploadDir string
@@ -58,14 +59,14 @@ func NewServer(
 	wallCfg config.WallConfig,
 	st *store.Store,
 	qzClient *qzone.Client,
-	renderer *render.Renderer, // [ADDED]
+	renderer *render.Renderer,
 ) *Server {
 	return &Server{
 		cfg:       cfg,
 		wallCfg:   wallCfg,
 		store:     st,
 		qzClient:  qzClient,
-		renderer:  renderer, // [ADDED]
+		renderer:  renderer,
 		uploadDir: "uploads",
 	}
 }
@@ -137,6 +138,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/qrcode/status", s.handleAPIQRStatus)
 	mux.HandleFunc("/api/health", s.handleAPIHealth)
 	mux.HandleFunc("/api/qzone/status", s.handleAPIQzoneStatus)
+	mux.HandleFunc("/api/qzone/refresh", s.handleAPIQzoneRefresh)
 
 	// 静态资源
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.uploadDir))))
@@ -284,6 +286,14 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.refreshInvalidRKeyInPosts(posts)
+
+	// 🟢 修改：构建用于展示的 Post 列表，将 file ID 还原为 URL
+	displayPosts := make([]*model.Post, len(posts))
+	for i, p := range posts {
+		// 克隆并解析图片链接
+		displayPosts[i] = s.resolvePostImages(p)
+	}
+
 	totalCount, _ := s.store.CountAll()
 	pendingCount, _ := s.store.CountByStatus(model.StatusPending)
 	approvedCount, _ := s.store.CountByStatus(model.StatusApproved)
@@ -292,7 +302,7 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Account":        account,
-		"Posts":          posts,
+		"Posts":          displayPosts, // 使用解析后的列表
 		"TotalCount":     totalCount,
 		"PendingCount":   pendingCount,
 		"ApprovedCount":  approvedCount,
@@ -460,21 +470,18 @@ func (s *Server) handleAPIBatchApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Parse IDs
 	ids, err := parseBatchIDs(r.FormValue("ids"))
 	if err != nil {
 		jsonResp(w, 400, false, err.Error())
 		return
 	}
 
-	// 2. Get Posts
 	posts, err := s.store.GetPostsByIDs(ids)
 	if err != nil {
 		jsonResp(w, 500, false, "数据库查询失败: "+err.Error())
 		return
 	}
 
-	// 3. Filter only Pending posts
 	var validPosts []*model.Post
 	for _, p := range posts {
 		if p.Status == model.StatusPending {
@@ -487,34 +494,30 @@ func (s *Server) handleAPIBatchApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Prepare Publishing Logic (Similar to QQBot)
 	var summaryBuilder strings.Builder
 	summaryBuilder.WriteString(fmt.Sprintf("【表白墙更新】 %s\n", time.Now().Format("01/02")))
 	summaryBuilder.WriteString("----------------\n")
 
 	var imagesData [][]byte
 
-	// Render and Prepare Text
 	for _, post := range validPosts {
-		// A. Render
 		var imgData []byte
 		var renderErr error
 
 		if s.renderer != nil && s.renderer.Available() {
-			imgData, renderErr = s.renderer.RenderPost(post)
+			// 解析 fileID 为 URL
+			renderPost := s.resolvePostImages(post)
+			imgData, renderErr = s.renderer.RenderPost(renderPost)
 		} else {
 			renderErr = fmt.Errorf("renderer not available")
 		}
 
 		if renderErr != nil || len(imgData) == 0 {
 			log.Printf("[Web] 渲染失败 #%d: %v", post.ID, renderErr)
-			// Decide: Fail the whole batch or skip?
-			// Here we skip this post to avoid blocking others, but warn in log
 			continue
 		}
 		imagesData = append(imagesData, imgData)
 
-		// B. Append Text
 		content := []rune(post.Text)
 		if len(content) > 20 {
 			summaryBuilder.WriteString(fmt.Sprintf("#%d: %s...\n", post.ID, string(content[:20])))
@@ -526,7 +529,6 @@ func (s *Server) handleAPIBatchApprove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// C. Mark as Published (Optimistic update)
 		post.Status = model.StatusPublished
 		_ = s.store.SavePost(post)
 	}
@@ -540,10 +542,6 @@ func (s *Server) handleAPIBatchApprove(w http.ResponseWriter, r *http.Request) {
 	summaryBuilder.WriteString("详情见图 👇")
 	finalText := summaryBuilder.String()
 
-	// 5. Publish to Qzone
-	// Note: Publishing takes time, but we hold the HTTP request to report success/fail
-	// If it takes too long (>30s), Nginx might timeout, but usually Qzone publish is fast enough.
-
 	opts := &qzone.PublishOption{
 		ImageBytes: imagesData,
 	}
@@ -552,7 +550,6 @@ func (s *Server) handleAPIBatchApprove(w http.ResponseWriter, r *http.Request) {
 
 	if publishErr != nil {
 		log.Printf("[Web] 发布说说失败: %v", publishErr)
-		// Rollback status
 		for _, p := range validPosts {
 			p.Status = model.StatusPending
 			_ = s.store.SavePost(p)
@@ -633,7 +630,6 @@ func (s *Server) applyBatchStatus(ids []int64, status model.PostStatus, reason s
 			skipped++
 			continue
 		}
-		// 只处理待审核稿件，避免重复审核。
 		if post.Status != model.StatusPending {
 			skipped++
 			continue
@@ -656,7 +652,6 @@ func (s *Server) applyBatchStatus(ids []int64, status model.PostStatus, reason s
 	return updated, skipped, nil
 }
 
-// handleAPIQRCode 生成并返回 QQ 空间登录二维码。
 func (s *Server) handleAPIQRCode(w http.ResponseWriter, r *http.Request) {
 	account := s.currentAccount(r)
 	if account == nil || !account.IsAdmin() {
@@ -733,7 +728,6 @@ func (s *Server) pollQRLogin() {
 	s.qrMu.Unlock()
 }
 
-// handleAPIQRStatus 返回二维码登录状态。
 func (s *Server) handleAPIQRStatus(w http.ResponseWriter, r *http.Request) {
 	s.qrMu.Lock()
 	status := s.qrStatus
@@ -769,6 +763,48 @@ func (s *Server) handleAPIQzoneStatus(w http.ResponseWriter, r *http.Request) {
 		"cookie_valid": s.isQzoneLoggedIn(),
 		"uin":          uin,
 	})
+}
+
+func (s *Server) handleAPIQzoneRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonResp(w, 405, false, "仅支持 POST")
+		return
+	}
+	account := s.currentAccount(r)
+	if account == nil || !account.IsAdmin() {
+		jsonResp(w, 403, false, "无权限")
+		return
+	}
+
+	var success bool
+	var uin int64
+
+	zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
+		if rk := ctx.NcGetRKey(); rk.Raw != "" {
+			_, _ = rkey.UpdateFromRaw(rk.Raw)
+		}
+
+		cookie := ctx.GetCookies("qzone.qq.com")
+		if cookie == "" {
+			return true
+		}
+
+		if err := s.qzClient.UpdateCookie(cookie); err != nil {
+			log.Printf("[Web] 从 Bot(%d) 刷新 Cookie 失败: %v", id, err)
+			return true
+		}
+
+		uin = s.qzClient.UIN()
+		success = true
+		log.Printf("[Web] 成功从 Bot(%d) 拉取 Cookie, UIN=%d", id, uin)
+		return false
+	})
+
+	if success {
+		jsonResp(w, 200, true, fmt.Sprintf("成功从 Bot 拉取 Cookie (UIN: %d)", uin))
+	} else {
+		jsonResp(w, 200, false, "未能从任何 Bot 获取到有效 Cookie")
+	}
 }
 
 func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) {
@@ -840,7 +876,6 @@ func (s *Server) renderTemplate(w http.ResponseWriter, name string, data interfa
 	}
 }
 
-// RegisterUser 提供给外部调用的用户注册接口。
 func (s *Server) RegisterUser(username, password string) error {
 	existing, _ := s.store.GetAccount(username)
 	if existing != nil {
@@ -851,12 +886,10 @@ func (s *Server) RegisterUser(username, password string) error {
 	return s.store.CreateAccount(username, hash, salt, "user")
 }
 
-// SetCookieFile 预留接口：当前不做持久化处理。
 func (s *Server) SetCookieFile(cookieFile string) {
 	_ = cookieFile
 }
 
-// GetUploadDir 返回上传目录。
 func (s *Server) GetUploadDir() string {
 	return s.uploadDir
 }
@@ -959,8 +992,32 @@ func (s *Server) isQzoneLoggedIn() bool {
 	if s.qzClient == nil || s.qzClient.UIN() <= 0 {
 		return false
 	}
-	// main.go uses a bootstrap placeholder cookie during async init.
-	// Treat it as not logged in until a real cookie is updated.
 	raw := s.qzClient.Session().Cookie()
 	return !strings.Contains(raw, "p_skey=bootstrap")
+}
+
+// ── Image Resolution Helpers ──
+
+func (s *Server) resolvePostImages(p *model.Post) *model.Post {
+	clone := *p
+	clone.Images = make([]string, len(p.Images))
+	for i, img := range p.Images {
+		clone.Images[i] = s.resolveImageURL(img)
+	}
+	return &clone
+}
+
+func (s *Server) resolveImageURL(img string) string {
+	if strings.HasPrefix(img, "http") {
+		return img
+	}
+	var resolved string
+	zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
+		resolved = ctx.GetImage(img).Get("url").String()
+		return true
+	})
+	if resolved != "" {
+		return resolved
+	}
+	return img
 }
