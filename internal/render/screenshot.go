@@ -76,7 +76,11 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	)
 
 	// ── 2. 计算布局 ──
-	contentMaxW := CanvasWidth - (Padding * 2) - AvatarSize - AvatarRight
+	hasAvatar := !post.Anon
+	contentMaxW := CanvasWidth - (Padding * 2)
+	if hasAvatar {
+		contentMaxW -= AvatarSize + AvatarRight
+	}
 	
 	measureDc := gg.NewContext(1, 1)
 	textFace := r.getFace(SizeText)
@@ -129,8 +133,12 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	currentY += 50.0
 
 	totalH := int(currentY)
-	if totalH < int(Padding+AvatarSize+Padding) {
-		totalH = int(Padding + AvatarSize + Padding)
+	minH := Padding + Padding
+	if hasAvatar {
+		minH = Padding + AvatarSize + Padding
+	}
+	if totalH < int(minH) {
+		totalH = int(minH)
 	}
 
 	// ── 3. 开始绘制 ──
@@ -141,24 +149,25 @@ func (r *Renderer) RenderPost(post *model.Post) ([]byte, error) {
 	startX := Padding
 	startY := Padding
 
-	// 3.1 绘制头像
-	avatarImg := downloadAndResize(post.QQAvatarURL(), int(AvatarSize), int(AvatarSize))
-	dc.Push()
-	dc.DrawCircle(startX+AvatarSize/2, startY+AvatarSize/2, AvatarSize/2)
-	dc.Clip()
-	if avatarImg != nil {
-		dc.DrawImageAnchored(avatarImg, int(startX+AvatarSize/2), int(startY+AvatarSize/2), 0.5, 0.5)
-	} else {
-		dc.SetHexColor("#DCDCDC")
-		dc.DrawRectangle(startX, startY, AvatarSize, AvatarSize)
-		dc.Fill()
+	// 3.1 绘制头像（匿名投稿不渲染）
+	contentX := startX
+	if hasAvatar {
+		avatarImg := downloadAndResize(post.QQAvatarURL(), int(AvatarSize), int(AvatarSize))
+		dc.Push()
+		dc.DrawCircle(startX+AvatarSize/2, startY+AvatarSize/2, AvatarSize/2)
+		dc.Clip()
+		if avatarImg != nil {
+			dc.DrawImageAnchored(avatarImg, int(startX+AvatarSize/2), int(startY+AvatarSize/2), 0.5, 0.5)
+		} else {
+			dc.SetHexColor("#DCDCDC")
+			dc.DrawRectangle(startX, startY, AvatarSize, AvatarSize)
+			dc.Fill()
+		}
+		dc.Pop()
+		// ★★★ 核心修复：强制重置裁剪区域，否则后面画的内容都会不可见 ★★★
+		dc.ResetClip()
+		contentX = startX + AvatarSize + AvatarRight
 	}
-	dc.Pop()
-	
-	// ★★★ 核心修复：强制重置裁剪区域，否则后面画的内容都会不可见 ★★★
-	dc.ResetClip() 
-
-	contentX := startX + AvatarSize + AvatarRight
 
 	// 3.2 绘制昵称
 	dc.SetFontFace(r.getFace(SizeName))
