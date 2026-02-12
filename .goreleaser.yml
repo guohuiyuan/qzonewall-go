@@ -1,0 +1,63 @@
+﻿version: 2
+project_name: qzonewall-go
+
+env:
+  - GO111MODULE=on
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - go install github.com/tc-hib/go-winres@latest
+    - go-winres make --in ./winres/winres.json --out ./cmd/wall/rsrc
+
+builds:
+  - id: linux
+    main: ./cmd/wall
+    binary: qzonewall
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+  - id: windows
+    main: ./cmd/wall
+    binary: qzonewall
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    builds:
+      - linux
+      - windows
+    name_template: "qzonewall-go_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "qzonewall-go_checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
