@@ -4,8 +4,8 @@ go 1.24.0
 
 require (
 	github.com/fogleman/gg v1.3.0
-	github.com/guohuiyuan/qzone-go v0.0.0
-	github.com/wdvxdr1123/ZeroBot v1.8.3-0.20260117102541-393033a35adb
+	github.com/guohuiyuan/qzone-go v1.0.0
+	github.com/wdvxdr1123/ZeroBot v1.8.3-0.20260211080057-bb01972ba5f9
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.37.1
 )

@@ -26,7 +26,7 @@ import (
 	"github.com/guohuiyuan/qzonewall-go/internal/store"
 )
 
-//go:embed templates/*.html
+//go:embed templates/*.html templates/icon.png
 var templateFS embed.FS
 
 // Server Web 服务。
@@ -111,6 +111,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/logout", s.handleLogout)
 	mux.HandleFunc("/submit", s.handleSubmitPage)
 	mux.HandleFunc("/admin", s.handleAdminPage)
+	mux.HandleFunc("/icon.png", s.handleIcon)
+	mux.HandleFunc("/favicon.ico", s.handleFavicon)
 
 	// API 路由
 	mux.HandleFunc("/api/submit", s.handleAPISubmit)
@@ -635,6 +637,21 @@ func (s *Server) handleAPIQRStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIHealth(w http.ResponseWriter, r *http.Request) {
 	jsonResp(w, 200, true, "ok")
+}
+
+func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) {
+	icon, err := templateFS.ReadFile("templates/icon.png")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write(icon)
+}
+
+func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
+	s.handleIcon(w, r)
 }
 
 func (s *Server) currentAccount(r *http.Request) *model.Account {
