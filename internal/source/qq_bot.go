@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io" // 新增
 	"log"
+	"net/http" // 新增
 	"strconv"
 	"strings"
 	"time"
@@ -497,14 +499,47 @@ func (b *QQBot) handleListPending(ctx *zero.Ctx) {
 // handleDirectPublish 管理员直接发说说
 func (b *QQBot) handleDirectPublish(ctx *zero.Ctx) {
 	text := getArgs(ctx)
-	if text == "" {
+	images := extractImages(ctx) // 1. 提取图片 URL
+
+	if text == "" && len(images) == 0 {
 		ctx.Send(message.Text("❌ 内容不能为空"))
 		return
 	}
 
 	go func() {
-		// 修正：参数 context.Context
-		_, err := b.qzClient.Publish(context.Background(), text, nil)
+		var imagesData [][]byte
+
+		// 2. 如果有图片，需要先下载转为 []byte
+		if len(images) > 0 {
+			client := &http.Client{Timeout: 20 * time.Second}
+			for _, imgURL := range images {
+				resp, err := client.Get(imgURL)
+				if err != nil {
+					log.Printf("[QQBot] 图片下载失败: %v", err)
+					continue
+				}
+				data, err := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				if err != nil {
+					log.Printf("[QQBot] 图片读取失败: %v", err)
+					continue
+				}
+				if len(data) > 0 {
+					imagesData = append(imagesData, data)
+				}
+			}
+		}
+
+		// 3. 构建发布选项
+		var opts *qzone.PublishOption
+		if len(imagesData) > 0 {
+			opts = &qzone.PublishOption{
+				ImageBytes: imagesData,
+			}
+		}
+
+		// 4. 调用发布 (传入 opts)
+		_, err := b.qzClient.Publish(context.Background(), text, opts)
 		if err != nil {
 			ctx.Send(message.Text("❌ 发布失败: " + err.Error()))
 		} else {
