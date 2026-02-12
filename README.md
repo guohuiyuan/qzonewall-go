@@ -85,13 +85,33 @@ go run ./cmd/wall
 
 项目提供了 Docker 支持，可以快速部署到容器环境中。
 
-### 构建镜像
+### 快速部署（推荐）
+
+使用自动部署脚本：
+
+```bash
+# 下载部署脚本
+wget https://raw.githubusercontent.com/guohuiyuan/qzonewall-go/main/deploy.sh
+chmod +x deploy.sh
+
+# 运行部署脚本
+./deploy.sh
+```
+
+脚本会自动：
+- 拉取最新 Docker 镜像
+- 创建示例配置文件
+- 启动容器并挂载配置
+
+### 手动部署
+
+#### 构建镜像
 
 ```bash
 docker build -t qzonewall-go .
 ```
 
-### 运行容器
+#### 运行容器
 
 基本运行（使用内置默认配置）：
 
@@ -107,7 +127,7 @@ cp cmd/wall/example_config.yaml my_config.yaml
 # 编辑 my_config.yaml 进行自定义配置
 
 # 运行容器并挂载配置
-docker run -p 8081:8081 -v //$(pwd)/my_config.yaml:/home/appuser/config.yaml qzonewall-go
+docker run -p 8081:8081 -v $(pwd)/my_config.yaml:/home/appuser/config.yaml qzonewall-go
 ```
 
 ### Docker 环境说明
