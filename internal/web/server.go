@@ -1,4 +1,4 @@
-﻿package web
+package web
 
 import (
 	"crypto/rand"
@@ -358,7 +358,7 @@ func (s *Server) handleAPISubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post := &model.Post{
-		UIN: uin,
+		UIN:        uin,
 		Name:       name,
 		Text:       text,
 		Images:     images,
