@@ -10,6 +10,12 @@
 
 项目基于 Go，数据存 SQLite，机器人侧使用 ZeroBot（对接 NapCat WebSocket），QQ 空间接口由 `qzone-go` 提供。
 
+## 界面展示
+
+![Web 界面 1](./screenshots/web1.png)
+
+![Web 界面 2](./screenshots/web2.png)
+
 ## 主要能力
 
 - 投稿来源
