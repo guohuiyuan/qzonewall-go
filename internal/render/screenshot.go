@@ -21,6 +21,7 @@ import (
 	"github.com/guohuiyuan/qzonewall-go/internal/model"
 	xdraw "golang.org/x/image/draw" // 扩展库
 	"golang.org/x/image/font"
+	_ "golang.org/x/image/webp" // 【新增】引入此包以支持 image.Decode 解析 WebP 图片
 )
 
 //go:embed font.ttf
