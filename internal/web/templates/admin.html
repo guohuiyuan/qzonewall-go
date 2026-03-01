@@ -884,7 +884,7 @@ function readFormToConfig() {
 
 // Password change logic has been moved to the modal.
   document.addEventListener("DOMContentLoaded", function() {
-    window.PasswordIsDefault = {{.PasswordIsDefault}};
+    window.PasswordIsDefault = "{{.PasswordIsDefault}}" === "true";
     if (window.PasswordIsDefault) {
       window.forcePasswordChange = true;
       showPwdModal(true);

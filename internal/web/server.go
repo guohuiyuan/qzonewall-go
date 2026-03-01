@@ -1187,5 +1187,5 @@ func (s *Server) handleAPIPostImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Length", strconv.Itoa(len(imgData)))
-	w.Write(imgData)
+	_, _ = w.Write(imgData)
 }
