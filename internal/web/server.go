@@ -1132,22 +1132,14 @@ func (s *Server) resolvePostImagesForRender(p *model.Post) *model.Post {
 	clone := *p
 	clone.Images = make([]string, len(p.Images))
 
-	// 获取 uploads 文件夹的绝对路径，例如 /home/appuser/uploads
-	// 如果 s.uploadDir 本身就是相对路径 "uploads"，Abs 会把它变成绝对路径
-	absUploadDir, err := filepath.Abs(s.uploadDir)
-	if err != nil {
-		absUploadDir = s.uploadDir // 降级处理
-	}
-
 	for i, img := range p.Images {
 		// 数据库中存储的是 "/uploads/xxx.jpg"
 		if strings.HasPrefix(img, "/uploads/") {
-			// 1. 提取文件名 (xxx.jpg)
-			// 【修改点】：使用 path.Base 而不是 filepath.Base
-			// path.Base 专门处理 "/" 分隔符，不管你在 Windows 还是 Linux 都不会错
 			filename := path.Base(img)
-			// 2. 拼接成容器内的绝对路径: /home/appuser/uploads/xxx.jpg
-			clone.Images[i] = filepath.Join(absUploadDir, filename)
+			// [修复] 由于在 Docker 内部跑或者相对路径跑，文件其实被存在了 s.uploadDir (默认 data/uploads)
+			// 这里直接将两段 Join 起来，比如 data/uploads/xxx.jpg
+			// 依赖 resolveLocalUploadPath 进一步寻找绝对路径
+			clone.Images[i] = filepath.Join(s.uploadDir, filename)
 		} else {
 			clone.Images[i] = s.resolveImageURL(img)
 		}
