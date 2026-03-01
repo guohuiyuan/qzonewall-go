@@ -286,6 +286,7 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn-sm btn-primary" onclick="toggleSettings()" id="settingsToggle">⚙️ 系统设置</button>
+      <button class="btn-sm" style="background:#475569; color:white; border:none;" onclick="showPwdModal()">🔑 修改密码</button>
       <button class="btn-sm btn-primary" onclick="showQRModal()">扫码登录</button>
     </div>
   </div>
@@ -381,6 +382,29 @@
     <img id="qrImage" src="" width="200" height="200" style="display:none">
     <div class="qr-status" id="qrStatus">加载中...</div>
     <button class="btn-close" onclick="closeQRModal()">关闭</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pwdModal">
+  <div class="modal" style="width:340px;">
+    <h3>🔑 修改管理员密码</h3>
+    <div id="pwdMsg" style="display:none; padding:8px 12px; border-radius:6px; margin-bottom:12px; font-size:13px; text-align:left;"></div>
+    <div style="text-align:left; margin-bottom:12px;">
+      <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">旧密码</label>
+      <input type="password" id="oldPwd" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px;">
+    </div>
+    <div style="text-align:left; margin-bottom:12px;">
+      <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">新密码 (至少6位)</label>
+      <input type="password" id="newPwd" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px;">
+    </div>
+    <div style="text-align:left; margin-bottom:16px;">
+      <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">确认新密码</label>
+      <input type="password" id="confirmPwd" style="width:100%; padding:8px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px;">
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn-close" style="margin-top:0;" onclick="closePwdModal()">取消</button>
+      <button class="btn-sm btn-primary" id="btnChangePwd" onclick="changePasswordBtn()">确认修改</button>
+    </div>
   </div>
 </div>
 
@@ -590,6 +614,78 @@ function closeQRModal() {
   if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null; }
 }
 
+function showPwdModal(force = false) {
+  document.getElementById('pwdModal').classList.add('show');
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+  document.getElementById('confirmPwd').value = '';
+  const msgEl = document.getElementById('pwdMsg');
+  
+  if (force) {
+    msgEl.style.display = 'block';
+    msgEl.textContent = '为了您的账号安全，首次登录必须修改默认密码！';
+    msgEl.style.background = '#fff5f5';
+    msgEl.style.color = '#b91c1c';
+  } else {
+    msgEl.style.display = 'none';
+  }
+}
+
+function closePwdModal() {
+  if (window.forcePasswordChange) {
+    alert("必须完成密码修改才能继续使用");
+    return;
+  }
+  document.getElementById('pwdModal').classList.remove('show');
+}
+
+async function changePasswordBtn() {
+  const oldPass = document.getElementById('oldPwd').value;
+  const newPass = document.getElementById('newPwd').value;
+  const confirmPass = document.getElementById('confirmPwd').value;
+  const msgEl = document.getElementById('pwdMsg');
+  
+  function showMsg(text, isError) {
+    msgEl.style.display = 'block';
+    msgEl.textContent = text;
+    msgEl.style.background = isError ? '#fff5f5' : '#f0fdf4';
+    msgEl.style.color = isError ? '#b91c1c' : '#166534';
+  }
+
+  if (!oldPass) { showMsg('请输入旧密码', true); return; }
+  if (!newPass) { showMsg('请输入新密码', true); return; }
+  if (newPass.length < 6) { showMsg('新密码至少6位', true); return; }
+  if (newPass !== confirmPass) { showMsg('两次输入的新密码不一致', true); return; }
+
+  const btn = document.getElementById('btnChangePwd');
+  const orgText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+
+  try {
+    const resp = await fetch('{{.Root}}/api/change-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'old_password=' + encodeURIComponent(oldPass) + '&new_password=' + encodeURIComponent(newPass)
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showMsg('✅ 修改成功！请牢记新密码。', false);
+      window.forcePasswordChange = false;
+      setTimeout(() => {
+        closePwdModal();
+      }, 1500);
+    } else {
+      showMsg(data.message, true);
+    }
+  } catch(e) {
+    showMsg('请求失败', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orgText;
+  }
+}
+
 function startQRPoll() {
   if (qrPollTimer) clearInterval(qrPollTimer);
   qrPollTimer = setInterval(async function() {
@@ -737,12 +833,6 @@ function renderConfigForm(cfg) {
   html += section('🌐 Web 后台',
     row('监听地址', 'web_addr', cfg.web.addr)
   );
-  // 修改密码
-  html += section('🔑 修改密码',
-    row('旧密码', 'pw_old', '', 'password') +
-    row('新密码', 'pw_new', '', 'password') +
-    '<div style="margin-top:8px;text-align:right;"><button class="btn-sm btn-primary" type="button" onclick="changePassword()">修改密码</button></div>'
-  );
   // 敏感词
   html += section('🚫 敏感词',
     row('启用', 'censor_enable', cfg.censor.enable ? '1' : '0') +
@@ -794,27 +884,14 @@ function readFormToConfig() {
   _cfg.log.level = v('log_level');
 }
 
-async function changePassword() {
-  const oldPw = (document.getElementById('cfg_pw_old')||{}).value || '';
-  const newPw = (document.getElementById('cfg_pw_new')||{}).value || '';
-  if (!oldPw || !newPw) { showCfgMsg('请填写旧密码和新密码', false); return; }
-  if (newPw.length < 6) { showCfgMsg('新密码至少6位', false); return; }
-  try {
-    const resp = await fetch('{{.Root}}/api/change-password', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'old_password=' + encodeURIComponent(oldPw) + '&new_password=' + encodeURIComponent(newPw)
-    });
-    const data = await resp.json();
-    showCfgMsg(data.message, data.ok);
-    if (data.ok) {
-      document.getElementById('cfg_pw_old').value = '';
-      document.getElementById('cfg_pw_new').value = '';
+// Password change logic has been moved to the modal.
+  document.addEventListener("DOMContentLoaded", function() {
+    window.PasswordIsDefault = {{.PasswordIsDefault}};
+    if (window.PasswordIsDefault) {
+      window.forcePasswordChange = true;
+      showPwdModal(true);
     }
-  } catch(e) {
-    showCfgMsg('修改密码失败: ' + e.message, false);
-  }
-}
+  });
 </script>
 </body>
 </html>

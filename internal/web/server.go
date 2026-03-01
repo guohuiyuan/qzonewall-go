@@ -341,18 +341,19 @@ func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	publishedCount, _ := s.store.CountByStatus(model.StatusPublished)
 
 	data := map[string]interface{}{
-		"Account":        account,
-		"Posts":          displayPosts,
-		"TotalCount":     totalCount,
-		"PendingCount":   pendingCount,
-		"ApprovedCount":  approvedCount,
-		"RejectedCount":  rejectedCount,
-		"PublishedCount": publishedCount,
-		"StatusFilter":   statusFilter,
-		"CookieValid":    s.isQzoneLoggedIn(),
-		"QzoneUIN":       int64(0),
-		"Message":        r.URL.Query().Get("msg"),
-		"Root":           s.prefix, // [修改] 注入 Root
+		"Account":           account,
+		"Posts":             displayPosts,
+		"TotalCount":        totalCount,
+		"PendingCount":      pendingCount,
+		"ApprovedCount":     approvedCount,
+		"RejectedCount":     rejectedCount,
+		"PublishedCount":    publishedCount,
+		"StatusFilter":      statusFilter,
+		"CookieValid":       s.isQzoneLoggedIn(),
+		"QzoneUIN":          int64(0),
+		"Message":           r.URL.Query().Get("msg"),
+		"Root":              s.prefix, // [修改] 注入 Root
+		"PasswordIsDefault": s.isDefaultAdminPassword(account),
 	}
 	if s.qzClient != nil {
 		data["QzoneUIN"] = s.qzClient.UIN()
@@ -982,6 +983,14 @@ func (s *Server) currentAccount(r *http.Request) *model.Account {
 		return nil
 	}
 	return account
+}
+
+// 检查当前账号是否为使用默认密码的 admin
+func (s *Server) isDefaultAdminPassword(account *model.Account) bool {
+	if account == nil || account.Username != "admin" {
+		return false
+	}
+	return hashPassword("admin123", account.Salt) == account.PasswordHash
 }
 
 func hashPassword(password, salt string) string {
