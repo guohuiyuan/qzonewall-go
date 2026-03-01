@@ -8,13 +8,13 @@
 <title>投稿 - 表白墙</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; min-height: 100vh; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f9ff; min-height: 100vh; }
   .navbar {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
     padding: 12px 20px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e0f2fe;
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    box-shadow: 0 8px 24px rgba(56, 189, 248, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -44,29 +44,29 @@
     padding: 6px 12px;
     transition: all 0.2s ease;
   }
-  .navbar a:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+  .navbar a:hover { background: #e0f2fe; border-color: #7dd3fc; color: #0284c7; transform: translateY(-1px); }
   .navbar a:active { transform: translateY(0); }
   .container { max-width: 600px; margin: 24px auto; padding: 0 16px; }
   .card {
     background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
     padding: 28px;
     border-radius: 12px;
-    border: 1px solid #e8edf4;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e0f2fe;
+    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.08);
   }
   .form-group { margin-bottom: 18px; }
   label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; font-size: 14px; }
   input[type="text"], textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #dbe5ef;
+    border: 1px solid #bae6fd;
     border-radius: 8px;
     font-size: 14px;
     transition: border-color 0.2s, box-shadow 0.2s ease;
     background: #ffffff;
     color: #0f172a;
   }
-  input:focus, textarea:focus { outline: none; border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2); }
+  input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
   textarea { min-height: 140px; resize: vertical; font-family: inherit; }
   .checkbox-group { display: flex; align-items: center; gap: 8px; }
   .checkbox-group input { width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer; }
@@ -75,22 +75,22 @@
     display: inline-block;
     padding: 8px 16px;
     background: #ffffff;
-    border: 1px solid #dbe5ef;
+    border: 1px solid #bae6fd;
     border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    color: #334155;
+    color: #0ea5e9;
     transition: all 0.2s ease;
     font-weight: 600;
   }
-  .file-label:hover { background: #f8fafc; border-color: #cbd5e1; transform: translateY(-1px); }
+  .file-label:hover { background: #e0f2fe; border-color: #7dd3fc; color: #0284c7; transform: translateY(-1px); }
   .file-label input { display: none; }
   .preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .preview img { width: 86px; height: 86px; object-fit: cover; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08); }
   button.submit {
     width: 100%;
     padding: 12px;
-    background: linear-gradient(135deg, #334155, #1f2937);
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
     color: white;
     border: none;
     border-radius: 8px;
@@ -98,9 +98,9 @@
     cursor: pointer;
     font-weight: 700;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+    box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
   }
-  button.submit:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25); }
+  button.submit:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(59, 130, 246, 0.3); }
   button.submit:active { transform: translateY(0); }
   button.submit:disabled { opacity: 0.6; cursor: not-allowed; }
   .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }

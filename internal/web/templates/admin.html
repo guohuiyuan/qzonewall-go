@@ -8,13 +8,13 @@
 <title>管理后台 - 表白墙</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; min-height: 100vh; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f9ff; min-height: 100vh; }
   .navbar {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
     padding: 12px 20px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #e0f2fe;
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    box-shadow: 0 8px 24px rgba(56, 189, 248, 0.08);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -41,7 +41,7 @@
     padding: 6px 12px;
     transition: all 0.2s ease;
   }
-  .navbar-right a:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+  .navbar-right a:hover { background: #e0f2fe; border-color: #7dd3fc; color: #0284c7; transform: translateY(-1px); }
   .navbar-right a:active { transform: translateY(0); }
   .container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
 
@@ -95,9 +95,9 @@
   }
   .badge.active { color: #0f172a; border-color: transparent; box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14), 0 2px 7px rgba(15, 23, 42, 0.12); }
   .badge.active .count { background: rgba(255,255,255,0.92); color: #0f172a; }
-  .badge.all { background: linear-gradient(135deg, #f8fafc, #eef2f7); color: #334155; border-color: #e2e8f0; }
-  .badge.all .count { color: #334155; }
-  .badge.all.active { background: linear-gradient(135deg, #cbd5e1, #94a3b8); color: #0f172a; }
+  .badge.all { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); color: #0284c7; border-color: #bae6fd; }
+  .badge.all .count { color: #0284c7; }
+  .badge.all.active { background: linear-gradient(135deg, #7dd3fc, #38bdf8); color: #fff; }
   .badge.pending { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #c2410c; border-color: #fed7aa; }
   .badge.pending .count { color: #c2410c; }
   .badge.pending.active { background: linear-gradient(135deg, #fdba74, #fb923c); color: #7c2d12; }
@@ -119,8 +119,8 @@
   .dot.red { background: #ef4444; }
   .dot.gray { background: #94a3b8; }
   .btn-sm { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; }
-  .btn-primary { background: #667eea; color: white; }
-  .btn-primary:hover { background: #5a6fd6; }
+  .btn-primary { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); transition: all 0.2s; border: none; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3); background: linear-gradient(135deg, #60a5fa, #3b82f6); }
 
   /* 投稿卡片 */
   .post-card {
@@ -128,11 +128,11 @@
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 14px;
-    border: 1px solid #e8edf4;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    border: 1px solid #e0f2fe;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.08);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
-  .post-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1); border-color: #dce4ee; }
+  .post-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(56, 189, 248, 0.12); border-color: #bae6fd; }
   .post-card.pending { border-left: 4px solid #fb923c; }
   .post-card.approved { border-left: 4px solid #22c55e; }
   .post-card.rejected, .post-card.failed { border-left: 4px solid #ef4444; }
@@ -182,10 +182,10 @@
   .msg { padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
   .msg.ok { background: #f0fdf4; color: #166534; }
   .batch-bar {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 12px 14px; border-radius: 12px; margin-bottom: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%); padding: 12px 14px; border-radius: 12px; margin-bottom: 12px;
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06); flex-wrap: wrap;
+    border: 1px solid #e0f2fe;
+    box-shadow: 0 6px 16px rgba(56, 189, 248, 0.08); flex-wrap: wrap;
   }
   .batch-left { display: flex; align-items: center; gap: 10px; color: #334155; font-size: 13px; }
   .select-all-wrap {
@@ -194,14 +194,14 @@
     gap: 8px;
     padding: 6px 10px;
     background: #ffffff;
-    border: 1px solid #dbe5ef;
+    border: 1px solid #bae6fd;
     border-radius: 10px;
     font-weight: 600;
-    color: #334155;
+    color: #0ea5e9;
     cursor: pointer;
     user-select: none;
   }
-  .select-all-wrap:hover { border-color: #cbd5e1; background: #f8fafc; }
+  .select-all-wrap:hover { border-color: #7dd3fc; background: #e0f2fe; color: #0284c7; }
   .select-all-wrap input[type="checkbox"] { width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer; }
   #selectedCount {
     color: #1e293b;
@@ -792,7 +792,7 @@ function renderConfigForm(cfg) {
   const titleStyle = 'font-size:14px;font-weight:700;color:#334155;margin-bottom:10px;';
   const rowStyle = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;';
   const labelStyle = 'min-width:120px;font-size:13px;color:#64748b;';
-  const inputStyle = 'flex:1;min-width:150px;padding:6px 10px;border:1px solid #dbe5ef;border-radius:6px;font-size:13px;';
+  const inputStyle = 'flex:1;min-width:150px;padding:6px 10px;border:1px solid #bae6fd;border-radius:6px;font-size:13px;outline-color:#3b82f6;';
 
   function row(label, id, value, type) {
     type = type || 'text';
