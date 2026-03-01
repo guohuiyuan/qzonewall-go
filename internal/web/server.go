@@ -135,6 +135,17 @@ func (s *Server) Start() error {
 
 	// [修改] 使用 s.url() 包裹所有路由路径
 	mux.HandleFunc(s.url("/"), s.handleIndex)
+
+	// [新增] 如果配置了前缀，将根目录自动重定向到前缀目录
+	if s.prefix != "" && s.prefix != "/" {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, s.prefix, http.StatusFound)
+			} else {
+				http.NotFound(w, r)
+			}
+		})
+	}
 	mux.HandleFunc(s.url("/login"), s.handleLogin)
 	mux.HandleFunc(s.url("/logout"), s.handleLogout)
 	mux.HandleFunc(s.url("/submit"), s.handleSubmitPage)
