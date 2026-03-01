@@ -296,7 +296,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h3 style="font-size:16px; color:#0f172a;">⚙️ 系统设置</h3>
         <div style="display:flex; gap:8px;">
-          <button class="btn-sm" style="background:#f0f0f0" onclick="loadConfig()">🔄 重新加载</button>
+          <button class="btn-sm" style="background:#ef4444; color:white; border:none;" onclick="restartService()">🔄 重启服务</button>
           <button class="btn-sm btn-primary" onclick="saveConfig()">💾 保存配置</button>
         </div>
       </div>
@@ -635,13 +635,30 @@ async function loadConfig() {
   const msgEl = document.getElementById('configMsg');
   msgEl.style.display = 'none';
   try {
-    const resp = await fetch('{{.Root}}/api/config?reload=true');
+    const resp = await fetch('{{.Root}}/api/config');
     const data = await resp.json();
     if (!data.ok) { showCfgMsg('加载失败', false); return; }
     _cfg = data.config;
     renderConfigForm(_cfg);
   } catch(e) {
     showCfgMsg('加载配置失败: ' + e.message, false);
+  }
+}
+
+async function restartService() {
+  if (!confirm('确定要重启服务端吗？重启期间服务会短暂中断（如果是 Docker/Supervisor 部署会自动恢复）。')) return;
+  try {
+    const resp = await fetch('{{.Root}}/api/restart', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      showCfgMsg('重启指令已发出，正在重启...', true);
+      setTimeout(() => location.reload(), 3000);
+    } else {
+      showCfgMsg('重启失败: ' + data.message, false);
+    }
+  } catch(e) {
+    showCfgMsg('服务已断开，正在尝试页面重连...', true);
+    setTimeout(() => location.reload(), 3000);
   }
 }
 

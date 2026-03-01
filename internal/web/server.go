@@ -155,6 +155,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc(s.url("/api/qzone/refresh"), s.handleAPIQzoneRefresh)
 	mux.HandleFunc(s.url("/api/config"), s.handleAPIConfig)
 	mux.HandleFunc(s.url("/api/change-password"), s.handleAPIChangePassword)
+	mux.HandleFunc(s.url("/api/restart"), s.handleAPIRestart)
 
 	// [修复] 静态资源处理
 	// 1. 拼接前缀，例如 "/wall" + "/uploads" -> "/wall/uploads"
@@ -855,18 +856,6 @@ func (s *Server) handleAPIConfig(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		// 支持热加载：?reload=true 时从文件重新读取配置
-		if r.URL.Query().Get("reload") == "true" {
-			newCfg, err := config.Load(s.cfgPath)
-			if err != nil {
-				jsonResp(w, 500, false, "重新加载配置失败: "+err.Error())
-				return
-			}
-			*s.fullCfg = *newCfg
-			s.cfg = newCfg.Web
-			s.wallCfg = newCfg.Wall
-			log.Printf("[Web] 配置已从文件热加载: %s", s.cfgPath)
-		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"ok":     true,
@@ -941,6 +930,27 @@ func (s *Server) handleAPIChangePassword(w http.ResponseWriter, r *http.Request)
 	}
 
 	jsonResp(w, 200, true, "密码修改成功")
+}
+
+func (s *Server) handleAPIRestart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonResp(w, 405, false, "仅支持 POST")
+		return
+	}
+	account := s.currentAccount(r)
+	if account == nil || !account.IsAdmin() {
+		jsonResp(w, 403, false, "无权限")
+		return
+	}
+
+	jsonResp(w, 200, true, "正在重启...")
+
+	// 异步延迟退出，确保响应能先发给前端
+	go func() {
+		log.Println("[Web] 收到重启请求，准备退出 (退出码 0 让容器/守护进程自动重启)...")
+		time.Sleep(500 * time.Millisecond)
+		os.Exit(0)
+	}()
 }
 
 func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) {
