@@ -827,10 +827,6 @@ function renderConfigForm(cfg) {
     row('最大文字长度', 'wall_max_text', cfg.wall.max_text_len, 'number') +
     row('发布延迟', 'wall_delay', cfg.wall.publish_delay)
   );
-  // Web
-  html += section('🌐 Web 后台',
-    row('监听地址', 'web_addr', cfg.web.addr)
-  );
   // 敏感词
   html += section('🚫 敏感词',
     row('启用', 'censor_enable', cfg.censor.enable ? '1' : '0') +
@@ -870,7 +866,6 @@ function readFormToConfig() {
   _cfg.wall.max_images = parseInt(v('wall_max_images')) || 9;
   _cfg.wall.max_text_len = parseInt(v('wall_max_text')) || 2000;
   _cfg.wall.publish_delay = v('wall_delay');
-  _cfg.web.addr = v('web_addr');
   _cfg.censor.enable = v('censor_enable') === '1';
   _cfg.censor.words = v('censor_words').split(',').map(s=>s.trim()).filter(Boolean);
   _cfg.censor.words_file = v('censor_file');

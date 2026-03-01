@@ -95,7 +95,7 @@ type DatabaseConfig struct {
 // WebConfig 网页配置
 type WebConfig struct {
 	Enable bool   `json:"enable"`
-	Addr   string `json:"addr"`
+	Addr   string `json:"-"`
 }
 
 // CensorConfig 敏感词过滤配置
@@ -171,9 +171,6 @@ func (c *Config) setDefaults() {
 	}
 	if c.Database.Path == "" {
 		c.Database.Path = "data/data.db"
-	}
-	if c.Web.Addr == "" {
-		c.Web.Addr = ":8080"
 	}
 	if c.Worker.Workers == 0 {
 		c.Worker.Workers = 1

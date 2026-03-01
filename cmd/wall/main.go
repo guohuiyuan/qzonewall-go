@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	qzone "github.com/guohuiyuan/qzone-go"
@@ -14,26 +15,35 @@ import (
 	"github.com/guohuiyuan/qzonewall-go/internal/store"
 	"github.com/guohuiyuan/qzonewall-go/internal/task"
 	"github.com/guohuiyuan/qzonewall-go/internal/web"
+	"github.com/spf13/cobra"
 )
 
 //go:embed example_config.json
 var exampleConfig string
 
-func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+var (
+	cfgPath string
+	port    string
+)
 
-	cfgPath := "data/config.json"
-	for i := 1; i < len(os.Args); i++ {
-		switch os.Args[i] {
-		case "--config", "-c":
-			if i+1 < len(os.Args) {
-				i++
-				cfgPath = os.Args[i]
-			}
-		default:
-			cfgPath = os.Args[i]
-		}
+func main() {
+	var rootCmd = &cobra.Command{
+		Use:   "wall",
+		Short: "Qzone Wall Bot",
+		Run:   runApp,
 	}
+
+	rootCmd.PersistentFlags().StringVarP(&cfgPath, "config", "c", "data/config.json", "config file path")
+	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "8080", "web server port")
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+}
+
+func runApp(cmd *cobra.Command, args []string) {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// 确保 data 目录存在
 	if err := os.MkdirAll("data/uploads", 0755); err != nil {
@@ -52,6 +62,15 @@ func main() {
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		log.Fatalf("load config failed: %v", err)
+	}
+
+	// Override web addr using cobra port
+	if port != "" {
+		host := ""
+		if idx := strings.LastIndex(cfg.Web.Addr, ":"); idx != -1 {
+			host = cfg.Web.Addr[:idx]
+		}
+		cfg.Web.Addr = host + ":" + port
 	}
 	log.Println("[Main] config loaded")
 

@@ -4,7 +4,7 @@ services:
     container_name: qzonewall
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "8080:8080"
     volumes:
       # 只需挂载 data 目录，包含 config.json、数据库和上传文件
       - ./data:/home/appuser/data

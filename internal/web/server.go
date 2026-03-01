@@ -168,8 +168,18 @@ func (s *Server) Start() error {
 	// 3. 注册 handler
 	mux.Handle(fsPath, http.StripPrefix(fsPath, http.FileServer(http.Dir(s.uploadDir))))
 
+	listenAddr := s.cfg.Addr
+	if port := os.Getenv("PORT"); port != "" {
+		// Use the port from environment variables, preserving host if specified
+		host := ""
+		if idx := strings.LastIndex(s.cfg.Addr, ":"); idx != -1 {
+			host = s.cfg.Addr[:idx]
+		}
+		listenAddr = host + ":" + port
+	}
+
 	s.server = &http.Server{
-		Addr:    s.cfg.Addr,
+		Addr:    listenAddr,
 		Handler: mux,
 	}
 

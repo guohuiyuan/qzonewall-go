@@ -37,8 +37,7 @@
         "path": "data/data.db"
     },
     "web": {
-        "enable": true,
-        "addr": ":8081"
+        "enable": true
     },
     "censor": {
         "enable": true,

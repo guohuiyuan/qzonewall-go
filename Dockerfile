@@ -37,17 +37,14 @@ WORKDIR /home/appuser/
 # Copy the binary from builder stage
 COPY --from=builder /app/wall .
 
-# Create data directory (config, db, uploads all in data/)
-RUN mkdir -p data/uploads
-
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /home/appuser/
 
 # Switch to non-root user
 USER appuser
 
-# Expose port 8081
-EXPOSE 8081
+# Expose port 8080
+EXPOSE 8080
 
 # Run the application
 CMD ["./wall"]
