@@ -20,11 +20,10 @@ import (
 
 // KeepAlive 定期校验 QQ 空间 Cookie 有效性并自动刷新。
 type KeepAlive struct {
-	qzoneCfg config.QzoneConfig
-	botCfg   config.BotConfig
-	client   *qzone.Client
-	ctx      context.Context
-	cancel   context.CancelFunc
+	cfg    *config.Config
+	client *qzone.Client
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type CookieResult struct {
@@ -32,24 +31,24 @@ type CookieResult struct {
 	Err    error
 }
 
-func NewKeepAlive(qzoneCfg config.QzoneConfig, botCfg config.BotConfig, client *qzone.Client) *KeepAlive {
+func NewKeepAlive(cfg *config.Config, client *qzone.Client) *KeepAlive {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &KeepAlive{qzoneCfg: qzoneCfg, botCfg: botCfg, client: client, ctx: ctx, cancel: cancel}
+	return &KeepAlive{cfg: cfg, client: client, ctx: ctx, cancel: cancel}
 }
 
 func (k *KeepAlive) Start() {
-	if k.qzoneCfg.KeepAlive.Duration <= 0 {
+	if k.cfg.Qzone.KeepAlive.Duration <= 0 {
 		log.Println("[KeepAlive] disabled (keep_alive <= 0)")
 		return
 	}
 	go k.run()
-	log.Printf("[KeepAlive] started, interval=%v", k.qzoneCfg.KeepAlive.Duration)
+	log.Printf("[KeepAlive] started, interval=%v", k.cfg.Qzone.KeepAlive.Duration)
 }
 
 func (k *KeepAlive) Stop() { k.cancel() }
 
 func (k *KeepAlive) run() {
-	ticker := time.NewTicker(k.qzoneCfg.KeepAlive.Duration)
+	ticker := time.NewTicker(k.cfg.Qzone.KeepAlive.Duration)
 	defer ticker.Stop()
 
 	for {
@@ -99,7 +98,7 @@ func (k *KeepAlive) tryRefreshFromBot() bool {
 
 // EnsureCookieValidOnStartup validates cookie once during startup and
 // attempts a single refresh flow when invalid.
-func EnsureCookieValidOnStartup(_ config.QzoneConfig, botCfg config.BotConfig, client *qzone.Client) error {
+func EnsureCookieValidOnStartup(cfg *config.Config, client *qzone.Client) error {
 	if client == nil {
 		return fmt.Errorf("nil qzone client")
 	}
@@ -123,7 +122,7 @@ func EnsureCookieValidOnStartup(_ config.QzoneConfig, botCfg config.BotConfig, c
 		return nil
 	}
 
-	refreshFn := RefreshCookie(botCfg)
+	refreshFn := RefreshCookie(cfg)
 	newCookie, refreshErr := refreshFn()
 	if refreshErr != nil {
 		return fmt.Errorf("startup refresh failed: %w", refreshErr)
@@ -147,11 +146,11 @@ func validateCookieWithUserInfo(parent context.Context, client *qzone.Client) (*
 }
 
 func (k *KeepAlive) notifyAdmin(text string) {
-	if k.botCfg.ManageGroup <= 0 {
+	if k.cfg.Bot.ManageGroup <= 0 {
 		return
 	}
 	zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
-		ctx.SendGroupMessage(k.botCfg.ManageGroup, message.Text(text))
+		ctx.SendGroupMessage(k.cfg.Bot.ManageGroup, message.Text(text))
 		return false
 	})
 }
@@ -159,7 +158,7 @@ func (k *KeepAlive) notifyAdmin(text string) {
 // TryGetCookie sources cookie from two methods in fixed order:
 // 1) ZeroBot GetCookies
 // 2) QR login
-func TryGetCookie(_ config.QzoneConfig) (string, error) {
+func TryGetCookie(_ *config.Config) (string, error) {
 	// 优化：启动后先硬等待 2 秒。
 	// 原因：Bot 连接 WS 和同步 Cookie 需要几百毫秒到 1 秒的时间。
 	// 直接循环会导致第一次必定失败，不如先等一下，通常能一次命中。
@@ -187,18 +186,18 @@ func TryGetCookie(_ config.QzoneConfig) (string, error) {
 // TryGetCookieAsync runs the full cookie bootstrap flow in background:
 // 1) ZeroBot GetCookies retries
 // 2) fallback QR login
-func TryGetCookieAsync(qzoneCfg config.QzoneConfig) <-chan CookieResult {
+func TryGetCookieAsync(cfg *config.Config) <-chan CookieResult {
 	ch := make(chan CookieResult, 1)
 	go func() {
 		defer close(ch)
-		cookie, err := TryGetCookie(qzoneCfg)
+		cookie, err := TryGetCookie(cfg)
 		ch <- CookieResult{Cookie: cookie, Err: err}
 	}()
 	return ch
 }
 
 // RefreshCookie is used by qzone.WithOnSessionExpired callback.
-func RefreshCookie(botCfg config.BotConfig) func() (string, error) {
+func RefreshCookie(cfg *config.Config) func() (string, error) {
 	return func() (string, error) {
 		log.Println("[SessionExpired] cookie expired, trying bot GetCookies...")
 		cookie, ok := tryGetCookieFromBots("[SessionExpired]")
@@ -206,9 +205,9 @@ func RefreshCookie(botCfg config.BotConfig) func() (string, error) {
 			return cookie, nil
 		}
 
-		if botCfg.ManageGroup > 0 {
+		if cfg.Bot.ManageGroup > 0 {
 			zero.RangeBot(func(id int64, ctx *zero.Ctx) bool {
-				ctx.SendGroupMessage(botCfg.ManageGroup, message.Text("⚠️ QQ空间 Cookie 过期，GetCookies 刷新失败，请使用 /扫码 重新登录"))
+				ctx.SendGroupMessage(cfg.Bot.ManageGroup, message.Text("⚠️ QQ空间 Cookie 过期，GetCookies 刷新失败，请使用 /扫码 重新登录"))
 				return false
 			})
 		}

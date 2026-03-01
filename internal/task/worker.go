@@ -19,8 +19,7 @@ import (
 
 // Worker 定时轮询已通过稿件并发布到 QQ 空间。
 type Worker struct {
-	cfg         config.WorkerConfig
-	wallCfg     config.WallConfig
+	cfg         *config.Config
 	client      *qzone.Client
 	store       *store.Store
 	renderer    *render.Renderer
@@ -33,8 +32,7 @@ type Worker struct {
 
 // NewWorker creates a worker.
 func NewWorker(
-	cfg config.WorkerConfig,
-	wallCfg config.WallConfig,
+	cfg *config.Config,
 	client *qzone.Client,
 	st *store.Store,
 	renderer *render.Renderer,
@@ -42,7 +40,6 @@ func NewWorker(
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Worker{
 		cfg:      cfg,
-		wallCfg:  wallCfg,
 		client:   client,
 		store:    st,
 		renderer: renderer,
@@ -53,11 +50,11 @@ func NewWorker(
 
 // Start 启动 worker goroutine。
 func (w *Worker) Start() {
-	for i := 0; i < w.cfg.Workers; i++ {
+	for i := 0; i < w.cfg.Worker.Workers; i++ {
 		w.wg.Add(1)
 		go w.run(i)
 	}
-	log.Printf("[Worker] 启动 %d 个工作协程，轮询间隔=%v", w.cfg.Workers, w.cfg.PollInterval.Duration)
+	log.Printf("[Worker] 启动 %d 个工作协程，轮询间隔=%v", w.cfg.Worker.Workers, w.cfg.Worker.PollInterval.Duration)
 }
 
 // Stop 优雅停止。
@@ -71,7 +68,7 @@ func (w *Worker) run(id int) {
 	defer w.wg.Done()
 	log.Printf("[Worker-%d] started polling", id)
 
-	ticker := time.NewTicker(w.cfg.PollInterval.Duration)
+	ticker := time.NewTicker(w.cfg.Worker.PollInterval.Duration)
 	defer ticker.Stop()
 
 	for {
@@ -104,10 +101,10 @@ func (w *Worker) pollAndPublish(workerID int) {
 
 	// Publish with retries.
 	var lastErr error
-	for retry := 0; retry <= w.cfg.RetryCount; retry++ {
+	for retry := 0; retry <= w.cfg.Worker.RetryCount; retry++ {
 		if retry > 0 {
 			log.Printf("[Worker-%d] 重试第 %d 次...", workerID, retry)
-			time.Sleep(w.cfg.RetryDelay.Duration)
+			time.Sleep(w.cfg.Worker.RetryDelay.Duration)
 		}
 
 		err := w.publish(post)
@@ -132,7 +129,7 @@ func (w *Worker) pollAndPublish(workerID int) {
 func (w *Worker) publish(post *model.Post) error {
 	// 构建说说文本。
 	text := post.Text
-	if w.wallCfg.ShowAuthor && !post.Anon {
+	if w.cfg.Wall.ShowAuthor && !post.Anon {
 		text = fmt.Sprintf("【来自 %s 的投稿】\n\n%s", post.ShowName(), text)
 	}
 
@@ -217,8 +214,8 @@ func (w *Worker) waitRateLimit() {
 		return
 	}
 	elapsed := time.Since(last)
-	if elapsed < w.cfg.RateLimit.Duration {
-		wait := w.cfg.RateLimit.Duration - elapsed
+	if elapsed < w.cfg.Worker.RateLimit.Duration {
+		wait := w.cfg.Worker.RateLimit.Duration - elapsed
 		log.Printf("[Worker] 频率限制，等待 %v", wait)
 		time.Sleep(wait)
 	}

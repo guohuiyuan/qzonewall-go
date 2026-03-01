@@ -24,9 +24,7 @@ import (
 
 // QQBot 基于 NapCat + ZeroBot 的 QQ 数据源
 type QQBot struct {
-	botCfg      config.BotConfig
-	wallCfg     config.WallConfig
-	qzoneCfg    config.QzoneConfig
+	cfg         *config.Config
 	store       *store.Store
 	renderer    *render.Renderer
 	qzClient    *qzone.Client
@@ -36,18 +34,14 @@ type QQBot struct {
 
 // NewQQBot 创建 QQ 机器人
 func NewQQBot(
-	botCfg config.BotConfig,
-	wallCfg config.WallConfig,
-	qzoneCfg config.QzoneConfig,
+	cfg *config.Config,
 	st *store.Store,
 	renderer *render.Renderer,
 	qzClient *qzone.Client,
 	censorWords []string,
 ) *QQBot {
 	return &QQBot{
-		botCfg:      botCfg,
-		wallCfg:     wallCfg,
-		qzoneCfg:    qzoneCfg,
+		cfg:         cfg,
 		store:       st,
 		renderer:    renderer,
 		qzClient:    qzClient,
@@ -65,12 +59,12 @@ func (b *QQBot) Start() error {
 	b.engine = zero.New()
 	b.registerCommands()
 
-	drivers := make([]zero.Driver, 0, len(b.botCfg.WS))
-	for _, ws := range b.botCfg.WS {
+	drivers := make([]zero.Driver, 0, len(b.cfg.Bot.WS))
+	for _, ws := range b.cfg.Bot.WS {
 		drivers = append(drivers, driver.NewWebSocketClient(ws.Url, ws.AccessToken))
 	}
 
-	zeroCfg := b.botCfg.Zero
+	zeroCfg := b.cfg.Bot.Zero
 	go func() {
 		zero.RunAndBlock(&zero.Config{
 			NickName:       zeroCfg.NickName,
@@ -149,12 +143,12 @@ func (b *QQBot) handleContribute(ctx *zero.Ctx, anon bool) {
 		ctx.Send(message.Text("❌ 投稿内容不能为空，请发送文字或图片"))
 		return
 	}
-	if b.wallCfg.MaxTextLen > 0 && len([]rune(text)) > b.wallCfg.MaxTextLen {
-		ctx.Send(message.Text(fmt.Sprintf("❌ 文字超出限制 (%d/%d)", len([]rune(text)), b.wallCfg.MaxTextLen)))
+	if b.cfg.Wall.MaxTextLen > 0 && len([]rune(text)) > b.cfg.Wall.MaxTextLen {
+		ctx.Send(message.Text(fmt.Sprintf("❌ 文字超出限制 (%d/%d)", len([]rune(text)), b.cfg.Wall.MaxTextLen)))
 		return
 	}
-	if b.wallCfg.MaxImages > 0 && len(images) > b.wallCfg.MaxImages {
-		ctx.Send(message.Text(fmt.Sprintf("❌ 图片超出限制 (%d/%d)", len(images), b.wallCfg.MaxImages)))
+	if b.cfg.Wall.MaxImages > 0 && len(images) > b.cfg.Wall.MaxImages {
+		ctx.Send(message.Text(fmt.Sprintf("❌ 图片超出限制 (%d/%d)", len(images), b.cfg.Wall.MaxImages)))
 		return
 	}
 
@@ -182,9 +176,9 @@ func (b *QQBot) handleContribute(ctx *zero.Ctx, anon bool) {
 
 	ctx.Send(message.Text(fmt.Sprintf("✅ 投稿成功！编号 #%d，等待审核...", post.ID)))
 
-	if b.botCfg.ManageGroup > 0 {
+	if b.cfg.Bot.ManageGroup > 0 {
 		notifyMsg := fmt.Sprintf("📬 收到新投稿 #%d\n%s", post.ID, post.Summary())
-		ctx.SendGroupMessage(b.botCfg.ManageGroup, message.Text(notifyMsg))
+		ctx.SendGroupMessage(b.cfg.Bot.ManageGroup, message.Text(notifyMsg))
 	}
 }
 

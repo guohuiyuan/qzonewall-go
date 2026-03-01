@@ -76,7 +76,7 @@ func main() {
 		log.Println("[Main] renderer disabled")
 	}
 
-	qqBot := source.NewQQBot(cfg.Bot, cfg.Wall, cfg.Qzone, st, renderer, nil, censorWords)
+	qqBot := source.NewQQBot(cfg, st, renderer, nil, censorWords)
 	if err := qqBot.Start(); err != nil {
 		log.Fatalf("start qq bot failed: %v", err)
 	}
@@ -89,7 +89,7 @@ func main() {
 	qzClient, err := qzone.NewClient(initCookie,
 		qzone.WithTimeout(cfg.Qzone.Timeout.Duration),
 		qzone.WithMaxRetry(cfg.Qzone.MaxRetry),
-		qzone.WithOnSessionExpired(task.RefreshCookie(cfg.Bot)),
+		qzone.WithOnSessionExpired(task.RefreshCookie(cfg)),
 	)
 	if err != nil {
 		log.Fatalf("[Main] qzone client create failed: %v", err)
@@ -102,7 +102,7 @@ func main() {
 
 	go func() {
 		log.Println("[Main] async cookie bootstrap started")
-		res := <-task.TryGetCookieAsync(cfg.Qzone)
+		res := <-task.TryGetCookieAsync(cfg)
 		if res.Err != nil {
 			log.Printf("[Main] async cookie bootstrap failed: %v", res.Err)
 			log.Println("[Main] use /扫码 or web admin QR login to refresh cookie")
@@ -114,18 +114,18 @@ func main() {
 		}
 		log.Printf("[Main] async cookie bootstrap success, uin=%d", qzClient.UIN())
 
-		if err := task.EnsureCookieValidOnStartup(cfg.Qzone, cfg.Bot, qzClient); err != nil {
+		if err := task.EnsureCookieValidOnStartup(cfg, qzClient); err != nil {
 			log.Printf("[Main] startup cookie validation failed: %v", err)
 		}
 	}()
 
 	qqBot.SetClient(qzClient)
 
-	worker := task.NewWorker(cfg.Worker, cfg.Wall, qzClient, st, renderer)
+	worker := task.NewWorker(cfg, qzClient, st, renderer)
 	worker.Start()
 	defer worker.Stop()
 
-	keepAlive := task.NewKeepAlive(cfg.Qzone, cfg.Bot, qzClient)
+	keepAlive := task.NewKeepAlive(cfg, qzClient)
 	keepAlive.Start()
 	defer keepAlive.Stop()
 
