@@ -49,19 +49,19 @@
   .container { max-width: 600px; margin: 24px auto; padding: 0 16px; }
   .card {
     background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-    padding: 28px;
+    padding: 32px;
     border-radius: 12px;
     border: 1px solid #e0f2fe;
     box-shadow: 0 6px 18px rgba(56, 189, 248, 0.08);
   }
-  .form-group { margin-bottom: 18px; }
-  label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; font-size: 14px; }
+  .form-group { margin-bottom: 22px; }
+  label { display: block; margin-bottom: 8px; font-weight: 600; color: #334155; font-size: 14px; }
   input[type="text"], textarea {
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid #bae6fd;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
     transition: border-color 0.2s, box-shadow 0.2s ease;
     background: #ffffff;
     color: #0f172a;
@@ -89,7 +89,7 @@
   .preview img { width: 86px; height: 86px; object-fit: cover; border-radius: 10px; border: 1px solid #e5e7eb; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08); }
   button.submit {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background: linear-gradient(135deg, #60a5fa, #3b82f6);
     color: white;
     border: none;
@@ -148,12 +148,21 @@
 
   @media (max-width: 640px) {
     /* 移动端调整 */
+    .container { margin: 12px auto; padding: 0 12px; }
+    .card { padding: 20px; }
+    .navbar {
+      margin: 8px 12px 0;
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .nav-actions { width: 100%; justify-content: flex-end; margin-top: 8px; }
     .wall-badge {
       order: 3; /* 让它排在最后或换行 */
       width: 100%;
       justify-content: center;
       margin: 8px 0 0 0;
     }
+    input[type="text"], textarea { font-size: 16px; /* 防止 iOS 缩放 */ padding: 10px 12px; }
   }
 </style>
 </head>

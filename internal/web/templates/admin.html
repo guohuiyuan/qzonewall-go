@@ -118,8 +118,8 @@
   .dot.green { background: #22c55e; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
   .dot.red { background: #ef4444; }
   .dot.gray { background: #94a3b8; }
-  .btn-sm { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; }
-  .btn-primary { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); transition: all 0.2s; border: none; }
+  .btn-sm { padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; }
+  .btn-primary { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); transition: all 0.2s; border: none; font-weight: 600; }
   .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3); background: linear-gradient(135deg, #60a5fa, #3b82f6); }
 
   /* 投稿卡片 */
@@ -221,9 +221,11 @@
   .post-select { margin-right: 8px; vertical-align: middle; width: 14px; height: 14px; accent-color: #f59e0b; cursor: pointer; }
 
   @media (max-width: 640px) {
+    .container { margin: 12px auto; padding: 0 12px; }
+    .post-card { padding: 14px; }
     .navbar {
-      margin: 10px 12px 0;
-      padding: 10px 12px;
+      margin: 8px 12px 0;
+      padding: 12px;
       border-radius: 10px;
       flex-wrap: wrap;
       gap: 10px;
@@ -234,8 +236,8 @@
       gap: 8px;
       flex-wrap: wrap;
     }
-    .navbar-right a { padding: 5px 10px; }
-    .batch-bar { padding: 10px; }
+    .navbar-right a { padding: 6px 12px; }
+    .batch-bar { padding: 12px; }
     .batch-left, .batch-actions { width: 100%; }
     .batch-actions button { flex: 1; }
     /* 移动端徽章换行 */
@@ -245,6 +247,10 @@
       justify-content: center;
       margin: 8px 0 0 0;
     }
+    /* 后台设置表单 */
+    .cfg-row { flex-direction: column; align-items: flex-start !important; }
+    .cfg-label { margin-bottom: 6px; }
+    .cfg-input { width: 100%; font-size: 16px !important; /* 防止 iOS 缩放 */ }
   }
 </style>
 </head>
@@ -351,17 +357,9 @@
       <div class="post-author">
         {{if .Anon}}匿名用户{{else}}{{.Name}}{{if .UIN}} ({{.UIN}}){{end}}{{end}}
       </div>
-      {{if .Text}}<div class="post-text">{{.Text}}</div>{{end}}
-      {{if hasImages .Images}}
-      <div class="post-images">
-        {{range .Images}}
-        <div class="img-wrap">
-          <img src="{{.}}" onclick="window.open(this.src)" alt="图片" loading="lazy" referrerpolicy="no-referrer" onerror="handleImageError(this)">
-          <div class="img-fallback">图片加载失败</div>
-        </div>
-        {{end}}
+      <div style="text-align: center; margin: 12px 0;">
+        <img src="{{$.Root}}/api/post/image?id={{.ID}}" style="max-width: 100%; border-radius: 12px; border: 1px solid #e0f2fe; box-shadow: 0 4px 14px rgba(0,0,0,0.05);" alt="Post Image">
       </div>
-      {{end}}
       {{if .Reason}}<div style="color:#999;font-size:13px;margin-bottom:8px">理由: {{.Reason}}</div>{{end}}
       {{if eq (printf "%s" .Status) "pending"}}
       <div class="post-actions">
@@ -789,15 +787,15 @@ function showCfgMsg(text, ok) {
 function renderConfigForm(cfg) {
   const form = document.getElementById('configForm');
   const sectionStyle = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;';
-  const titleStyle = 'font-size:14px;font-weight:700;color:#334155;margin-bottom:10px;';
-  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;';
+  const titleStyle = 'font-size:14px;font-weight:700;color:#334155;margin-bottom:12px;';
+  const rowStyle = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
   const labelStyle = 'min-width:120px;font-size:13px;color:#64748b;';
-  const inputStyle = 'flex:1;min-width:150px;padding:6px 10px;border:1px solid #bae6fd;border-radius:6px;font-size:13px;outline-color:#3b82f6;';
+  const inputStyle = 'flex:1;min-width:150px;padding:8px 12px;border:1px solid #bae6fd;border-radius:6px;font-size:13px;outline-color:#3b82f6;';
 
   function row(label, id, value, type) {
     type = type || 'text';
     const v = value === undefined || value === null ? '' : value;
-    return '<div style="'+rowStyle+'"><label style="'+labelStyle+'">'+label+'</label><input id="cfg_'+id+'" type="'+type+'" value="'+v+'" style="'+inputStyle+'"></div>';
+    return '<div class="cfg-row" style="'+rowStyle+'"><label class="cfg-label" style="'+labelStyle+'">'+label+'</label><input class="cfg-input" id="cfg_'+id+'" type="'+type+'" value="'+v+'" style="'+inputStyle+'"></div>';
   }
 
   function section(title, content) {

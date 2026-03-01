@@ -144,6 +144,7 @@ func (s *Server) Start() error {
 
 	// API 路由
 	mux.HandleFunc(s.url("/api/submit"), s.handleAPISubmit)
+	mux.HandleFunc(s.url("/api/post/image"), s.handleAPIPostImage)
 	mux.HandleFunc(s.url("/api/approve"), s.handleAPIApprove)
 	mux.HandleFunc(s.url("/api/reject"), s.handleAPIReject)
 	mux.HandleFunc(s.url("/api/approve/batch"), s.handleAPIBatchApprove)
@@ -1145,4 +1146,46 @@ func (s *Server) resolveImageURL(img string) string {
 		return resolved
 	}
 	return img
+}
+
+func (s *Server) handleAPIPostImage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		jsonResp(w, 405, false, "仅支持 GET")
+		return
+	}
+	account := s.currentAccount(r)
+	if account == nil || !account.IsAdmin() {
+		jsonResp(w, 403, false, "无权限")
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		jsonResp(w, 400, false, "编号格式错误")
+		return
+	}
+	post, err := s.store.GetPost(id)
+	if err != nil || post == nil {
+		jsonResp(w, 404, false, "稿件不存在")
+		return
+	}
+
+	if s.renderer == nil || !s.renderer.Available() {
+		jsonResp(w, 500, false, "渲染器不可用")
+		return
+	}
+
+	renderPost := s.resolvePostImagesForRender(post)
+	imgData, renderErr := s.renderer.RenderPost(renderPost)
+	if renderErr != nil {
+		log.Printf("[Web] 获取图片渲染失败 #%d: %v", post.ID, renderErr)
+		jsonResp(w, 500, false, "渲染失败")
+		return
+	}
+
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Length", strconv.Itoa(len(imgData)))
+	w.Write(imgData)
 }
