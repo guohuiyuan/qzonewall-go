@@ -1,0 +1,15 @@
+services:
+  qzonewall:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: guohuiyuan/qzonewall-go:dev
+    container_name: qzonewall-dev
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      # 只需挂载 data 目录，包含 config.json、数据库和上传文件
+      - ./data:/home/appuser/data
+    environment:
+      - TZ=Asia/Shanghai
