@@ -5,11 +5,13 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    environment:
+      - TZ=Asia/Shanghai
     volumes:
       # 只需挂载 data 目录，包含 config.json、数据库和上传文件
       - ./data:/home/appuser/data
-    environment:
-      - TZ=Asia/Shanghai
+    networks:
+      - bot_network
 
   napcat:
     image: mlikiowa/napcat-docker:latest
@@ -20,6 +22,7 @@ services:
       WS_ENABLE: "true"
       NAPCAT_GID: "0"
       NAPCAT_UID: "0"
+      TZ: Asia/Shanghai
     ports:
       - "3001:3001"
       - "6099:6099"
@@ -29,6 +32,25 @@ services:
       # 给 astrbot / napcat 登录态用（来自 astrbot 模板）
       - ./napcat/config:/app/napcat/config
       - ./ntqq:/app/.config/QQ
+      # 可选：给 astrbot 模式兼容路径（同一份 data 挂两次）
+      - ./data:/AstrBot/data
+    networks:
+      - bot_network
+
+  astrbot:
+    image: soulter/astrbot:v4.19.4
+    container_name: astrbot
+    restart: always
+    ports:
+      - "6185:6185"
+      # - "6195:6195"
+      - "6199:6199"
+    volumes:
+      - ./data:/AstrBot/data
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      - napcat
     networks:
       - bot_network
 
