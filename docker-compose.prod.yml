@@ -1,0 +1,37 @@
+services:
+  qzonewall:
+    image: guohuiyuan/qzonewall-go:latest
+    container_name: qzonewall
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 只需挂载 data 目录，包含 config.json、数据库和上传文件
+      - ./data:/home/appuser/data
+    environment:
+      - TZ=Asia/Shanghai
+
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: always
+    environment:
+      ACCOUNT: "3579833282"
+      WS_ENABLE: "true"
+      NAPCAT_GID: "0"
+      NAPCAT_UID: "0"
+    ports:
+      - "3001:3001"
+      - "6099:6099"
+    volumes:
+      # 给 qzonewall 用
+      - ./data:/home/appuser/data
+      # 给 astrbot / napcat 登录态用（来自 astrbot 模板）
+      - ./napcat/config:/app/napcat/config
+      - ./ntqq:/app/.config/QQ
+    networks:
+      - bot_network
+
+networks:
+  bot_network:
+    driver: bridge
