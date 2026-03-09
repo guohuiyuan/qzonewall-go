@@ -170,6 +170,49 @@ docker-compose logs -f
 docker-compose down
 ```
 
+##### 使用 `docker-compose.prod.yml`（集成 NapCat / AstrBot）
+
+如果你希望把 QQ 机器人侧也一起编排起来，可以直接使用项目里的 `docker-compose.prod.yml`。这个文件会同时启动：
+
+- `qzonewall`：投稿墙服务，镜像为 `guohuiyuan/qzonewall-go:latest`
+- `napcat`：QQ 登录与 WebSocket 网关
+- `astrbot`：作为机器人侧容器，与 `napcat` 配合使用
+
+启动前建议先准备这些目录：
+
+```bash
+mkdir -p data napcat/config ntqq
+```
+
+然后按需修改 `docker-compose.prod.yml` 中的配置：
+
+- `napcat.environment.ACCOUNT`：改成你自己的 QQ 号
+- `ports`：默认暴露了 `8080`、`3001`、`6099`、`6185`、`6199`
+- `volumes`：`./data` 会被多个服务共享，用来保存 `qzonewall` 的数据和 AstrBot 侧数据
+
+启动命令：
+
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+查看状态和日志：
+
+```bash
+docker-compose -f docker-compose.prod.yml ps
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+这一套生产编排的几个关键点：
+
+- 三个服务都挂在同一个 `bot_network` 网络中，容器之间可以直接互通
+- `qzonewall` 把宿主机 `./data` 挂载到容器内 `/home/appuser/data`
+- `napcat` 额外挂载了 `./napcat/config` 和 `./ntqq`，用于保存登录态和客户端配置
+- `astrbot` 也挂载 `./data:/AstrBot/data`，方便和其他组件共享数据目录
+- `qzonewall` 设置了 `restart: unless-stopped`，`napcat` 和 `astrbot` 设置了 `restart: always`
+
+如果你不需要把 NapCat 和 AstrBot 一起托管，只部署投稿墙本体即可，继续使用默认的 `docker-compose.yml` 会更简单。
+
 ##### 使用 Docker Run（备选）
 
 ###### 基本运行（使用内置默认配置）
