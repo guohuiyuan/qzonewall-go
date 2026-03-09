@@ -18,7 +18,8 @@ services:
     container_name: napcat
     restart: always
     environment:
-      ACCOUNT: "3579833282"
+      # 改成你bot的qq号
+      ACCOUNT: "0"
       WS_ENABLE: "true"
       NAPCAT_GID: "0"
       NAPCAT_UID: "0"
