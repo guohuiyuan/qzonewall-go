@@ -126,6 +126,28 @@ func (s *Store) DeletePost(id int64) error {
 	return err
 }
 
+// DeletePostsByIDs 批量删除投稿
+func (s *Store) DeletePostsByIDs(ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	ph := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		ph[i] = "?"
+		args[i] = id
+	}
+	res, err := s.db.Exec(
+		fmt.Sprintf("DELETE FROM posts WHERE id IN (%s)", strings.Join(ph, ",")),
+		args...,
+	)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // ListByStatus 按状态列出投稿
 func (s *Store) ListByStatus(status model.PostStatus) ([]*model.Post, error) {
 	rows, err := s.db.Query(postCols("WHERE status=? ORDER BY id ASC"), string(status))

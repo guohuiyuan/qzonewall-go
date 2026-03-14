@@ -160,6 +160,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc(s.url("/api/reject"), s.handleAPIReject)
 	mux.HandleFunc(s.url("/api/approve/batch"), s.handleAPIBatchApprove)
 	mux.HandleFunc(s.url("/api/reject/batch"), s.handleAPIBatchReject)
+	mux.HandleFunc(s.url("/api/delete/batch"), s.handleAPIBatchDelete)
 	mux.HandleFunc(s.url("/api/qrcode"), s.handleAPIQRCode)
 	mux.HandleFunc(s.url("/api/qrcode/status"), s.handleAPIQRStatus)
 	mux.HandleFunc(s.url("/api/health"), s.handleAPIHealth)
@@ -653,6 +654,30 @@ func (s *Server) handleAPIBatchReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonResp(w, 200, true, fmt.Sprintf("批量拒绝完成：成功 %d，跳过 %d", updated, skipped))
+}
+
+func (s *Server) handleAPIBatchDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		jsonResp(w, 405, false, "仅支持 POST")
+		return
+	}
+	account := s.currentAccount(r)
+	if account == nil || !account.IsAdmin() {
+		jsonResp(w, 403, false, "无权限")
+		return
+	}
+
+	ids, err := parseBatchIDs(r.FormValue("ids"))
+	if err != nil {
+		jsonResp(w, 400, false, err.Error())
+		return
+	}
+	n, err := s.store.DeletePostsByIDs(ids)
+	if err != nil {
+		jsonResp(w, 500, false, "批量删除失败: "+err.Error())
+		return
+	}
+	jsonResp(w, 200, true, fmt.Sprintf("已删除 %d 条稿件", n))
 }
 
 func parseBatchIDs(raw string) ([]int64, error) {

@@ -215,6 +215,7 @@
   .btn-batch { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
   .btn-batch.approve { background: #16a34a; color: white; }
   .btn-batch.reject { background: #dc2626; color: white; }
+  .btn-batch.delete { background: #7c3aed; color: white; }
   .btn-batch:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.02); }
   .btn-batch:active:not(:disabled) { transform: translateY(0); }
   .btn-batch:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -334,12 +335,13 @@
 
   <div class="batch-bar">
     <div class="batch-left">
-      <label class="select-all-wrap"><input type="checkbox" id="selectAllPending"> 全选待审核</label>
+      <label class="select-all-wrap"><input type="checkbox" id="selectAllPending"> 全选</label>
       <span id="selectedCount">已选择 0 条</span>
     </div>
     <div class="batch-actions">
       <button id="batchApproveBtn" class="btn-batch approve" onclick="batchApprove()" disabled>批量通过</button>
       <button id="batchRejectBtn" class="btn-batch reject" onclick="batchReject()" disabled>批量拒绝</button>
+      <button id="batchDeleteBtn" class="btn-batch delete" onclick="batchDelete()" disabled>批量删除</button>
     </div>
   </div>
 
@@ -348,7 +350,7 @@
     <div class="post-card {{statusClass .Status}}" id="post-{{.ID}}">
       <div class="post-header">
         <div>
-          {{if eq (printf "%s" .Status) "pending"}}<input type="checkbox" class="post-select pending-select" value="{{.ID}}" onchange="updateBatchSelection()">{{end}}
+          <input type="checkbox" class="post-select pending-select" value="{{.ID}}" onchange="updateBatchSelection()">
           <span class="post-id">#{{.ID}}</span>
           <span class="post-status {{statusClass .Status}}">{{statusText .Status}}</span>
         </div>
@@ -504,6 +506,7 @@ function updateBatchSelection() {
   document.getElementById('selectedCount').textContent = '已选择 ' + selected.length + ' 条';
   document.getElementById('batchApproveBtn').disabled = !hasSelection;
   document.getElementById('batchRejectBtn').disabled = !hasSelection;
+  document.getElementById('batchDeleteBtn').disabled = !hasSelection;
 
   const all = Array.from(document.querySelectorAll('.pending-select'));
   const allChecked = all.length > 0 && all.every(el => el.checked);
@@ -582,6 +585,30 @@ async function batchReject() {
     if (data.ok) location.reload();
   } catch(e) {
     alert('批量拒绝失败');
+  }
+}
+
+async function batchDelete() {
+  const ids = getSelectedPostIDs();
+  if (ids.length === 0) return;
+  if (!confirm('确认永久删除已选择的 ' + ids.length + ' 条稿件？此操作不可撤销！')) return;
+  const btn = document.getElementById('batchDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = '删除中...';
+  try {
+    const resp = await fetch('{{.Root}}/api/delete/batch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'ids=' + encodeURIComponent(ids.join(','))
+    });
+    const data = await resp.json();
+    alert(data.message || '操作完成');
+    if (data.ok) location.reload();
+  } catch(e) {
+    alert('批量删除失败');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '批量删除';
   }
 }
 
